@@ -361,7 +361,6 @@ def render_quiz(section: str):
     st.markdown("### 📝 Quick Quiz")
 
     for i, qdata in enumerate(questions):
-        st.markdown(f"<div class='quiz-card'>", unsafe_allow_html=True)
         st.markdown(f"**Q{i+1}: {qdata['q']}**")
         key = f"quiz_answers_{section}_{i}"
         choice = st.radio(
@@ -384,7 +383,7 @@ def render_quiz(section: str):
                     f"Correct answer: **{correct_opt}**",
                     unsafe_allow_html=True,
                 )
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("---")
 
     col_btn, col_score = st.columns([2, 3])
     with col_btn:
@@ -434,7 +433,7 @@ def render_llm_chat(context: str, placeholder_question: str, chat_key: str):
                 with st.spinner("Thinking..."):
                     response = get_llm_response(provider, api_key, model, question.strip(), context)
                 st.markdown(
-                    f"<div class='info-box'><b>AI Tutor:</b><br>{response}</div>",
+                    f"<div style='background:#0d2a5e;border-left:4px solid #4fc3f7;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'><b>AI Tutor:</b><br>{response}</div>",
                     unsafe_allow_html=True,
                 )
             elif not question.strip():
@@ -577,94 +576,46 @@ def create_grid_figure(env, q_table=None, path=None, agent_pos=None, show_arrows
     return fig
 
 
-def create_animated_path(env, path, title="Agent Path Animation"):
-    """Create an animated Plotly figure showing the agent traversing a path."""
-    size = env.size
-    shapes, base_annotations = _grid_shapes_and_annotations(env)
-
-    path_x_all = [c + 0.5 for (r, c) in path]
-    path_y_all = [size - r - 0.5 for (r, c) in path]
-
-    frames = []
-    for i in range(len(path)):
-        frame_data = [
-            go.Scatter(
-                x=path_x_all[:i+1], y=path_y_all[:i+1],
-                mode="lines",
-                line=dict(color="gold", width=3, dash="dot"),
-                showlegend=False,
-            ),
-            go.Scatter(
-                x=[path_x_all[i]], y=[path_y_all[i]],
-                mode="markers+text",
-                marker=dict(size=28, color="#9b59b6", symbol="circle"),
-                text=["🤖"], textposition="middle center",
-                showlegend=False,
-            ),
-        ]
-        frames.append(go.Frame(data=frame_data, name=str(i)))
-
-    fig = go.Figure(
-        data=[
-            go.Scatter(x=[path_x_all[0]], y=[path_y_all[0]],
-                       mode="lines", line=dict(color="gold", width=3, dash="dot"), showlegend=False),
-            go.Scatter(x=[path_x_all[0]], y=[path_y_all[0]],
-                       mode="markers+text",
-                       marker=dict(size=28, color="#9b59b6"), text=["🤖"],
-                       textposition="middle center", showlegend=False),
-        ],
-        frames=frames,
-    )
-    fig.update_layout(
-        title=dict(text=title, font=dict(color="#4fc3f7", size=16)),
-        shapes=shapes, annotations=base_annotations,
-        xaxis=dict(range=[0, size], showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(range=[0, size], showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x"),
-        paper_bgcolor="#1a1a2e", plot_bgcolor="#1a1a2e",
-        margin=dict(l=10, r=10, t=60, b=10),
-        height=440,
-        updatemenus=[dict(
-            type="buttons", showactive=False,
-            y=1.12, x=0.5, xanchor="center",
-            buttons=[
-                dict(
-                    label="▶ Play",
-                    method="animate",
-                    args=[None, {
-                        "frame": {"duration": 600, "redraw": True},
-                        "transition": {"duration": 200, "easing": "linear"},
-                        "fromcurrent": True,
-                        "mode": "immediate",
-                    }],
-                ),
-                dict(
-                    label="⏸ Pause",
-                    method="animate",
-                    args=[[None], {
-                        "frame": {"duration": 0, "redraw": False},
-                        "transition": {"duration": 0},
-                        "mode": "immediate",
-                    }],
-                ),
-            ],
-        )],
-        sliders=[dict(
-            steps=[
-                dict(
-                    method="animate",
-                    args=[[str(i)], {"mode": "immediate", "frame": {"duration": 0, "redraw": True}, "transition": {"duration": 0}}],
-                    label=str(i),
-                )
-                for i in range(len(path))
-            ],
-            currentvalue=dict(prefix="Step: ", font=dict(color="#e0e0e0")),
-            font=dict(color="#e0e0e0"),
-            bgcolor="#16213e",
-            bordercolor="#0f3460",
-            x=0.05, len=0.9, y=0,
-        )],
-    )
-    return fig
+def render_step_animation(env, path, unique_key, title="Agent Path"):
+    """Streamlit-native step-through animation using st.empty() + time.sleep()."""
+    import time
+    if not path:
+        st.warning("No path to display.")
+        return
+    n = len(path)
+    c_speed, c_reset = st.columns([3, 1])
+    with c_speed:
+        delay = st.select_slider(
+            "Animation speed",
+            options=[0.2, 0.4, 0.7, 1.2],
+            value=0.7,
+            format_func=lambda x: {0.2:"Very fast",0.4:"Fast",0.7:"Medium",1.2:"Slow"}[x],
+            key=f"speed_{unique_key}",
+        )
+    with c_reset:
+        if st.button("Reset", key=f"reset_{unique_key}"):
+            st.session_state[f"astep_{unique_key}"] = 0
+    if f"astep_{unique_key}" not in st.session_state:
+        st.session_state[f"astep_{unique_key}"] = 0
+    step = st.slider("Drag to scrub:", 0, n-1, st.session_state[f"astep_{unique_key}"], key=f"slider_{unique_key}")
+    st.session_state[f"astep_{unique_key}"] = step
+    chart_ph = st.empty()
+    play_clicked = st.button("▶  Play animation", key=f"play_{unique_key}", type="primary")
+    def _fig(i):
+        pos = path[i]
+        suffix = ""
+        if i == n-1:
+            if pos == env.goal: suffix = " — Goal reached!"
+            elif pos in env.traps: suffix = " — Hit a trap!"
+        return create_grid_figure(env, path=path[:i+1], agent_pos=pos, show_arrows=False,
+                                  title=f"{title}  |  Step {i}/{n-1}  at {pos}{suffix}")
+    if play_clicked:
+        for i in range(n):
+            chart_ph.plotly_chart(_fig(i), use_container_width=True, key=f"af_{unique_key}")
+            time.sleep(delay)
+        st.session_state[f"astep_{unique_key}"] = n-1
+    else:
+        chart_ph.plotly_chart(_fig(step), use_container_width=True, key=f"af_{unique_key}")
 
 
 def create_training_charts(history):
@@ -882,7 +833,6 @@ with tabs[0]:
     # Learning objectives
     col_obj, col_prog = st.columns([3, 2])
     with col_obj:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("### 🎯 Learning Objectives")
         objectives = [
             "Understand what Reinforcement Learning is and how it differs from supervised/unsupervised learning",
@@ -894,10 +844,8 @@ with tabs[0]:
         ]
         for obj in objectives:
             st.markdown(f"- {obj}")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     with col_prog:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("### 📈 Your Progress")
         total_score = sum(st.session_state[f"quiz_score_{s}"] for s in SECTIONS)
         total_max   = sum(SECTION_MAX[s] for s in SECTIONS)
@@ -911,7 +859,6 @@ with tabs[0]:
             mx    = SECTION_MAX[sec]
             icon  = "✅" if done else "⬜"
             st.markdown(f"{icon} {SECTION_LABELS[sec]}: **{score}/{mx}**")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     st.markdown("### 🌟 Features")
@@ -925,35 +872,32 @@ with tabs[0]:
     for col, (icon, title, desc) in zip([f1, f2, f3, f4], feature_data):
         with col:
             st.markdown(
-                f"<div class='feature-card'><h3>{icon} {title}</h3><p style='color:#ccc;font-size:0.9rem'>{desc}</p></div>",
+                f"<div style='background:linear-gradient(135deg,#16213e,#0f3460);border:1px solid #4fc3f7;border-radius:10px;padding:18px;text-align:center;color:#e0e0e0;'><h3>{icon} {title}</h3><p style='color:#ccc;font-size:0.9rem'>{desc}</p></div>",
                 unsafe_allow_html=True,
             )
 
     st.markdown("---")
-    st.markdown("<div class='info-box'>", unsafe_allow_html=True)
-    st.markdown(
+    st.info(
         "**How to use this app:** Navigate the tabs left-to-right. Each tab introduces new concepts, "
         "ends with a quiz, and has an AI Tutor expander. Configure your preferred LLM in the sidebar "
         "to unlock the AI Tutor. The Grid World Demo and Train Your Agent tabs let you interact with "
         "a live Q-learning simulation."
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — WHAT IS RL?
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[1]:
-    st.markdown("<div class='section-title'>❓ What is Reinforcement Learning?</div>", unsafe_allow_html=True)
+    st.markdown("## What is Reinforcement Learning?")
 
     # Dog trick analogy
     col_dog, col_def = st.columns([1, 2])
     with col_dog:
         st.markdown(
-            "<div class='rl-card' style='text-align:center;font-size:3rem'>🐕</div>",
+            "<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;text-align:center;font-size:3rem'>🐕</div>",
             unsafe_allow_html=True,
         )
     with col_def:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("### The Dog Trick Analogy")
         st.markdown(
             "Imagine teaching a dog to sit. You don't give it a manual — you simply **reward** it "
@@ -962,7 +906,6 @@ with tabs[1]:
             "Reinforcement Learning works the same way: an **agent** learns by trying actions in an "
             "**environment** and receiving **rewards** or **penalties** as feedback — no labelled dataset required."
         )
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # Comparison table
     st.markdown("### Comparison with Other ML Paradigms")
@@ -997,11 +940,12 @@ with tabs[1]:
         chat_key="what_is_rl",
     )
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RL FRAMEWORK
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[2]:
-    st.markdown("<div class='section-title'>🔄 The RL Framework</div>", unsafe_allow_html=True)
+    st.markdown("## The RL Framework")
 
     # SVG diagram of the Agent-Environment loop
     st.markdown("### The Agent-Environment Loop")
@@ -1064,7 +1008,7 @@ with tabs[2]:
         col = [c1, c2, c3][idx % 3]
         with col:
             st.markdown(
-                f"<div class='rl-card' style='border-left:4px solid {comp_col}'>"
+                f"<div style='background:#16213e;border-left:4px solid {comp_col};border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;'>"
                 f"<b style='color:{comp_col}'>{comp_name}</b><br><small>{comp_desc}</small></div>",
                 unsafe_allow_html=True,
             )
@@ -1110,13 +1054,12 @@ with tabs[2]:
 # TAB 3 — KEY CONCEPTS
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[3]:
-    st.markdown("<div class='section-title'>🧠 Key Concepts</div>", unsafe_allow_html=True)
+    st.markdown("## Key Concepts")
 
     # Policy
     st.markdown("### 📋 Policy (π)")
     col_det, col_sto = st.columns(2)
     with col_det:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("**Deterministic Policy**")
         st.latex(r"\pi(s) = a")
         st.markdown(
@@ -1124,9 +1067,7 @@ with tabs[3]:
             "Given the same state, the agent always takes the same action. "
             "Simple and fast — great when the optimal action is clear."
         )
-        st.markdown("</div>", unsafe_allow_html=True)
     with col_sto:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("**Stochastic Policy**")
         st.latex(r"\pi(a \mid s) = P(A_t = a \mid S_t = s)")
         st.markdown(
@@ -1134,36 +1075,31 @@ with tabs[3]:
             "The agent samples an action from this distribution. "
             "Useful in games of chance or when multiple actions are equally good."
         )
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # Value functions
     st.markdown("---")
     st.markdown("### 💰 Value Functions")
     col_v, col_q = st.columns(2)
     with col_v:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("**State Value Function V(s)**")
         st.latex(r"V^{\pi}(s) = \mathbb{E}_{\pi}\left[G_t \mid S_t = s\right]")
         st.markdown(
             "The expected cumulative return starting from state *s* and following policy π. "
             "A high V(s) means this is a good state to be in."
         )
-        st.markdown("</div>", unsafe_allow_html=True)
     with col_q:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("**Action-Value Function Q(s, a)**")
         st.latex(r"Q^{\pi}(s,a) = \mathbb{E}_{\pi}\left[G_t \mid S_t = s,\, A_t = a\right]")
         st.markdown(
             "The expected cumulative return from state *s*, taking action *a*, then following policy π. "
             "Q-learning directly estimates this function."
         )
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # Bellman equation
     st.markdown("---")
     st.markdown("### The Bellman Equation — The Core Insight of RL")
 
-    st.markdown("""<div class='info-box'>
+    st.markdown("""<div style='background:#0d2a5e;border-left:4px solid #4fc3f7;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>
 <b>The intuition:</b> The value of taking action <i>a</i> in state <i>s</i> equals
 <b>what you earn right now</b> plus <b>the best you can earn from where you land</b>.
 <br><br>
@@ -1176,22 +1112,22 @@ you just need to know the next hop and trust that the values ahead are correct.
 
     b1, b2, b3, b4 = st.columns(4)
     with b1:
-        st.markdown("""<div class='rl-card' style='border-top:4px solid #4fc3f7;text-align:center;'>
+        st.markdown("""<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;border-top:4px solid #4fc3f7;text-align:center;'>
         <b style='color:#4fc3f7;font-size:1.1rem'>Q*(s, a)</b><br><br>
         <small>The <b>optimal Q-value</b>: the best possible cumulative reward when taking action a from state s</small>
         </div>""", unsafe_allow_html=True)
     with b2:
-        st.markdown("""<div class='rl-card' style='border-top:4px solid #2ecc71;text-align:center;'>
+        st.markdown("""<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;border-top:4px solid #2ecc71;text-align:center;'>
         <b style='color:#2ecc71;font-size:1.1rem'>r(s, a)</b><br><br>
         <small>The <b>immediate reward</b> you collect right now — e.g. −0.1 for a step, +10 for reaching the goal</small>
         </div>""", unsafe_allow_html=True)
     with b3:
-        st.markdown("""<div class='rl-card' style='border-top:4px solid #f39c12;text-align:center;'>
+        st.markdown("""<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;border-top:4px solid #f39c12;text-align:center;'>
         <b style='color:#f39c12;font-size:1.1rem'>γ (gamma)</b><br><br>
         <small>The <b>discount factor</b>: rewards earned in the future are worth slightly less than today's rewards</small>
         </div>""", unsafe_allow_html=True)
     with b4:
-        st.markdown("""<div class='rl-card' style='border-top:4px solid #9b59b6;text-align:center;'>
+        st.markdown("""<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;border-top:4px solid #9b59b6;text-align:center;'>
         <b style='color:#9b59b6;font-size:1.1rem'>max Q*(s', a')</b><br><br>
         <small>The <b>best Q-value in the next state s'</b> — whatever the optimal action there will be</small>
         </div>""", unsafe_allow_html=True)
@@ -1216,7 +1152,7 @@ After the agent accidentally reaches the goal and gets +10, the Bellman equation
     # Interactive Bellman demo
     st.markdown("---")
     st.markdown("### Interactive Bellman Calculator")
-    st.markdown("""<div class='info-box'>
+    st.markdown("""<div style='background:#0d2a5e;border-left:4px solid #4fc3f7;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>
 Adjust the sliders to see how each ingredient of the Bellman equation affects the result.
 The <b>TD Error</b> is the correction signal — it drives every Q-learning update.
 </div>""", unsafe_allow_html=True)
@@ -1295,7 +1231,7 @@ The <b>TD Error</b> is the correction signal — it drives every Q-learning upda
 # TAB 4 — Q-LEARNING
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[4]:
-    st.markdown("<div class='section-title'>📊 Q-Learning Algorithm</div>", unsafe_allow_html=True)
+    st.markdown("## Q-Learning Algorithm")
 
     # Q-table explanation
     st.markdown("### 🗂️ The Q-Table")
@@ -1316,11 +1252,9 @@ with tabs[4]:
     # Update rule
     st.markdown("---")
     st.markdown("### ⚙️ Q-Learning Update Rule")
-    st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
     st.latex(
         r"Q(s,a) \leftarrow Q(s,a) + \alpha \Big[ r + \gamma \max_{a'} Q(s',a') - Q(s,a) \Big]"
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
     # Term breakdown
     st.markdown("### Term Breakdown")
@@ -1357,7 +1291,6 @@ with tabs[4]:
         )
         st.plotly_chart(fig_eps, use_container_width=True, key="ql_eps_chart")
     with ec2:
-        st.markdown("<div class='rl-card' style='margin-top:40px'>", unsafe_allow_html=True)
         st.markdown(f"**ε = {eps_slider:.2f}**")
         st.markdown(f"- Explore probability: **{eps_slider*100:.0f}%**")
         st.markdown(f"- Exploit probability: **{(1-eps_slider)*100:.0f}%**")
@@ -1367,7 +1300,6 @@ with tabs[4]:
             st.success("Very low ε → mostly greedy. Agent is confident in its Q-table (late training).")
         else:
             st.info("Balanced exploration and exploitation (mid-training).")
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # Epsilon decay visualization
     st.markdown("---")
@@ -1408,7 +1340,7 @@ with tabs[4]:
 # TAB 5 — GRID WORLD DEMO
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[5]:
-    st.markdown("<div class='section-title'>🎮 Grid World Demo</div>", unsafe_allow_html=True)
+    st.markdown("## Grid World Demo")
 
     # Auto-train default agent on first visit
     ensure_default_agent()
@@ -1421,7 +1353,6 @@ with tabs[5]:
     st.markdown("### The 5×5 Grid World Environment")
     info_c1, info_c2 = st.columns([2, 1])
     with info_c2:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
         st.markdown("**Rewards**")
         st.markdown("- 🏆 Goal: **+10**")
         st.markdown("- 💀 Trap: **−5**")
@@ -1432,57 +1363,130 @@ with tabs[5]:
         st.markdown("- Start: (0, 0) top-left")
         st.markdown("- Goal: (4, 4) bottom-right")
         st.markdown("- Traps: (0,3), (1,1), (2,2), (3,3)")
-        st.markdown("</div>", unsafe_allow_html=True)
     with info_c1:
         fig_static = create_grid_figure(env_d, q_table=agent_d.Q, show_arrows=True,
                                         title="Grid World — Optimal Policy Arrows")
         st.plotly_chart(fig_static, use_container_width=True, key="demo_static_grid")
 
-    # Episode selector — show path from snapshot
+    # Episode checkpoint selector
     st.markdown("---")
-    st.markdown("### 📽️ Agent Path at Different Training Stages")
+    st.markdown("### How the Agent Improves During Training")
+    st.info(
+        "The agent trains for **2,000 episodes**. An **episode** is one complete attempt: "
+        "the agent starts at S, takes steps one at a time, and either reaches the goal, hits a trap, "
+        "or runs out of moves. We captured a snapshot of the agent's knowledge (Q-table) and the path "
+        "it took at five checkpoints. Select a checkpoint below to see how its strategy evolved."
+    )
+    CHECKPOINT_DESC = {
+        50:   ("2.5% through training — mostly random",
+               "Epsilon (exploration rate) ≈ 0.78. The agent still tries almost random actions. "
+               "Paths are chaotic; it usually falls into a trap or wanders aimlessly."),
+        200:  ("10% through training — starting to learn",
+               "Epsilon ≈ 0.36. The agent has learned to avoid some traps but its policy still has big gaps."),
+        500:  ("25% through training — much improved",
+               "Epsilon ≈ 0.08. The agent reaches the goal most of the time and the arrows show a mostly-correct policy."),
+        1000: ("50% through training — nearly optimal",
+               "Epsilon is near its minimum (0.01). The agent reliably reaches the goal and Q-values are nearly converged."),
+        2000: ("100% — fully trained",
+               "Training complete. Compare these policy arrows to Episode 50 — completely different! "
+               "The agent now follows a near-optimal path every time."),
+    }
     available_eps = sorted(history_d["snapshots"].keys())
+    n_total = len(history_d["episode_rewards"])
     ep_select = st.selectbox(
-        "Select training checkpoint episode:",
+        "Select a training checkpoint to inspect:",
         options=available_eps,
-        format_func=lambda x: f"Episode {x}",
+        format_func=lambda x: f"Episode {x}  —  {CHECKPOINT_DESC[x][0]}",
         key="ep_select",
     )
+    st.progress(ep_select / n_total, text=f"Training progress: episode {ep_select} of {n_total}")
+    st.caption(CHECKPOINT_DESC[ep_select][1])
     path_snap = history_d["paths"].get(ep_select, [])
     q_snap    = history_d["snapshots"].get(ep_select)
-
     col_snap1, col_snap2 = st.columns(2)
     with col_snap1:
-        fig_snap = create_grid_figure(env_d, q_table=q_snap,
-                                      path=path_snap, show_arrows=True,
-                                      title=f"Policy & Path — Episode {ep_select}")
+        fig_snap = create_grid_figure(env_d, q_table=q_snap, path=path_snap, show_arrows=True,
+                                      title=f"Policy arrows + path — Episode {ep_select}")
         st.plotly_chart(fig_snap, use_container_width=True, key="demo_snap_path")
     with col_snap2:
         if path_snap:
             final_pos = path_snap[-1]
-            outcome = "🏆 Goal!" if final_pos == env_d.goal else ("💀 Trap" if final_pos in env_d.traps else "⏱️ Timeout")
-            st.markdown(f"**Episode outcome:** {outcome}")
-            st.markdown(f"**Path length:** {len(path_snap)} steps")
-            if ep_select <= 50:
-                st.warning("Early training: agent is mostly exploring randomly — path is chaotic.")
-            elif ep_select <= 200:
-                st.info("Mid training: agent is starting to learn useful paths but still makes mistakes.")
+            if final_pos == env_d.goal:
+                st.success("Outcome: Goal reached!")
+            elif final_pos in env_d.traps:
+                st.error("Outcome: Hit a trap!")
             else:
-                st.success("Late training: agent has learned a near-optimal policy.")
+                st.warning("Outcome: Timed out (too many steps)")
+            st.metric("Steps taken", len(path_snap) - 1)
+            ep_idx = ep_select - 1
+            window = history_d["success_flags"][max(0, ep_idx-99): ep_idx+1]
+            sr = int(np.mean(window)*100) if window else 0
+            st.metric("Success rate at this checkpoint", f"{sr}%")
+            st.markdown(
+                "**What the arrows show:** each arrow points to the action with the highest "
+                "Q-value in that cell — the agent's current best guess about which direction "
+                "leads to the most future reward."
+            )
 
     # Animated path of fully-trained agent
     st.markdown("---")
-    st.markdown("### 🤖 Animated — Fully Trained Agent")
+    st.markdown("### Animated — Fully Trained Agent")
+    st.info("Press **Play** to watch the agent navigate the grid. Drag the slider to scrub through steps manually.")
     final_path, final_reward = run_greedy_episode(env_d, agent_d)
-    fig_anim = create_animated_path(env_d, final_path, "Trained Agent (Greedy Policy)")
-    st.plotly_chart(fig_anim, use_container_width=True, key="demo_anim_path")
-    st.markdown(f"Episode total reward: **{final_reward:.2f}** | Steps: **{len(final_path)}**")
+    render_step_animation(env_d, final_path, unique_key="demo_main", title="Trained Agent (Greedy Policy)")
+    st.success(f"Total reward: **{final_reward:.2f}** | Steps: **{len(final_path)-1}**")
 
-    # Q-table heatmap
+    # Q-table heatmap + explanation
     st.markdown("---")
-    st.markdown("### 🌡️ Q-Table Heatmap")
+    st.markdown("### What the Agent Learned — Q-Table Heatmap")
+    st.info(
+        "Each cell shows the **maximum Q-value** across all four actions for that grid position — "
+        "how much total reward the agent expects to collect from here if it plays optimally. "
+        "**Green = high value** (near goal, easy to reach it). **Red = low/negative** (trap cells or very far from goal)."
+    )
     fig_heat = create_qtable_heatmap(env_d, agent_d.Q)
     st.plotly_chart(fig_heat, use_container_width=True, key="demo_qtable_heat")
+    with st.expander("Understanding these Q-values with γ = 0.99 — click to expand"):
+        st.markdown("""
+**Why are the values what they are?**
+
+With γ = 0.99 (very close to 1) the agent values future rewards almost as much as immediate ones,
+so it is willing to plan many steps ahead.
+
+| Cell type | What the value means |
+|-----------|----------------------|
+| **Bright green (~9–10)** | Very close to the goal — reward ≈ +10 discounted by only 1–2 steps |
+| **Mid green (~6–8)** | A few steps from the goal — reward is discounted by γ per step |
+| **Near zero** | Far from the goal or the agent rarely visits here |
+| **0 (trap/goal cells)** | Terminal states — the episode ends there, no future reward possible |
+
+**The math behind it:** Goal = +10 reward. From the cell one step away, the agent earns
+−0.1 (step penalty) + 0.99 × 10 = **9.9**. From two steps away:
+−0.1 + 0.99 × 9.9 = **9.701**. Each additional step reduces the value by ~1%.
+That is why the bottom row and right column are the greenest — they are closest to the goal.
+
+**Try γ = 0.5 in the Train Your Agent tab.** With a short-sighted agent, states more than
+3–4 steps from the goal will have Q-values near zero because future rewards are discounted
+so aggressively (0.5^4 = 0.06). The agent will struggle to navigate longer paths.
+        """)
+        symbols = GridWorld.ACTION_SYMBOLS
+        rows = []
+        for r in range(env_d.size):
+            row = {}
+            for c in range(env_d.size):
+                state_idx = env_d.pos_to_state(r, c)
+                pos = (r, c)
+                if pos == env_d.goal:
+                    row[f"Col {c}"] = "GOAL"
+                elif pos in env_d.traps:
+                    row[f"Col {c}"] = "TRAP"
+                else:
+                    best_a = int(np.argmax(agent_d.Q[state_idx]))
+                    best_q = float(np.max(agent_d.Q[state_idx]))
+                    row[f"Col {c}"] = f"{symbols[best_a]} {best_q:.2f}"
+            rows.append(row)
+        qtdf = pd.DataFrame(rows, index=[f"Row {r}" for r in range(env_d.size)])
+        st.dataframe(qtdf, use_container_width=True)
 
     # Training metrics
     st.markdown("---")
@@ -1501,7 +1505,7 @@ with tabs[5]:
 # TAB 6 — TRAIN YOUR AGENT
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[6]:
-    st.markdown("<div class='section-title'>🏋️ Train Your Own Agent</div>", unsafe_allow_html=True)
+    st.markdown("## Train Your Own Agent")
     st.markdown(
         "Tune the hyperparameters below and hit **Train Agent** to see how they affect learning. "
         "Compare multiple runs using the comparison table at the bottom."
@@ -1519,7 +1523,7 @@ with tabs[6]:
                                       options=[500, 1000, 2000, 5000], value=2000, key="hp_n_ep")
 
     st.markdown(
-        f"<div class='info-box'>"
+        f"<div style='background:#0d2a5e;border-left:4px solid #4fc3f7;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>"
         f"<b>Config:</b> α={hp_alpha}, γ={hp_gamma}, ε_decay={hp_eps_dec:.3f}, episodes={hp_n_ep}"
         f"</div>",
         unsafe_allow_html=True,
@@ -1588,11 +1592,10 @@ with tabs[6]:
             st.plotly_chart(fig_hc, use_container_width=True, key="custom_qtable_heat")
 
         # Watch agent run
-        if st.button("👀 Watch Agent Run (Greedy)", key="watch_custom"):
-            cpath, creward = run_greedy_episode(env_c, agent_c)
-            fig_ca = create_animated_path(env_c, cpath, "Custom Agent — Greedy Episode")
-            st.plotly_chart(fig_ca, use_container_width=True, key="custom_anim_path")
-            st.markdown(f"Total reward: **{creward:.2f}** | Steps: **{len(cpath)}**")
+        st.markdown("**Watch Your Trained Agent**")
+        cpath, creward = run_greedy_episode(env_c, agent_c)
+        render_step_animation(env_c, cpath, unique_key="custom_anim", title="Your Custom Agent — Greedy Episode")
+        st.success(f"Total reward: **{creward:.2f}** | Steps: **{len(cpath)-1}**")
 
     # Comparison table
     if len(st.session_state.training_runs) > 1:
@@ -1614,7 +1617,7 @@ with tabs[6]:
 # TAB 7 — SUMMARY & CHALLENGES
 # ══════════════════════════════════════════════════════════════════════════════
 with tabs[7]:
-    st.markdown("<div class='section-title'>🎓 Summary & Challenges</div>", unsafe_allow_html=True)
+    st.markdown("## Summary & Challenges")
 
     # Summary table
     st.markdown("### 📋 Concepts Covered")
@@ -1685,7 +1688,7 @@ with tabs[7]:
     ]
     for step_name, step_desc, step_col in roadmap:
         st.markdown(
-            f"<div class='rl-card' style='border-left:4px solid {step_col}'>"
+            f"<div style='background:#16213e;border-left:4px solid {step_col};border-radius:12px;padding:16px 20px;margin-bottom:12px;color:#e0e0e0;'>"
             f"<b style='color:{step_col}'>{step_name}</b><br>"
             f"<small>{step_desc}</small>"
             f"</div>",
@@ -1696,7 +1699,7 @@ with tabs[7]:
     st.markdown("---")
     st.markdown("### 🏆 Final Challenge")
     st.markdown(
-        "<div class='warning-box'>These 5 questions test deeper understanding — think carefully!</div>",
+        "<div style='background:#3d1f00;border-left:4px solid #ff9800;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>These 5 questions test deeper understanding — think carefully!</div>",
         unsafe_allow_html=True,
     )
     render_quiz("final")
@@ -1706,25 +1709,28 @@ with tabs[7]:
     st.markdown("### 📚 Resources to Go Deeper")
     res_c1, res_c2, res_c3 = st.columns(3)
     with res_c1:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
-        st.markdown("**📖 Books**")
-        st.markdown("- Sutton & Barto — *Reinforcement Learning: An Introduction* (free online)")
-        st.markdown("- Agarwal et al. — *Reinforcement Learning: Theory and Algorithms*")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("""
+<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;color:#e0e0e0;'>
+<b style='color:#4fc3f7'>Books</b><br><br>
+<span style='color:#e0e0e0'>• Sutton &amp; Barto — <i>Reinforcement Learning: An Introduction</i> (free online)</span><br>
+<span style='color:#e0e0e0'>• Agarwal et al. — <i>Reinforcement Learning: Theory and Algorithms</i></span>
+</div>""", unsafe_allow_html=True)
     with res_c2:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
-        st.markdown("**🛠️ Tools & Libraries**")
-        st.markdown("- `gymnasium` — RL environments (formerly OpenAI Gym)")
-        st.markdown("- `stable-baselines3` — Pre-built RL algorithms")
-        st.markdown("- `ray[rllib]` — Scalable RL training")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("""
+<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;color:#e0e0e0;'>
+<b style='color:#4fc3f7'>Tools &amp; Libraries</b><br><br>
+<span style='color:#e0e0e0'>• <code>gymnasium</code> — standard RL environments</span><br>
+<span style='color:#e0e0e0'>• <code>stable-baselines3</code> — pre-built RL algorithms</span><br>
+<span style='color:#e0e0e0'>• <code>ray[rllib]</code> — scalable RL training</span>
+</div>""", unsafe_allow_html=True)
     with res_c3:
-        st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
-        st.markdown("**🎓 Courses**")
-        st.markdown("- David Silver's RL course (UCL/DeepMind) — YouTube")
-        st.markdown("- CS285 Deep RL (Berkeley) — YouTube")
-        st.markdown("- Hugging Face Deep RL Course — free, hands-on")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("""
+<div style='background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:16px 20px;color:#e0e0e0;'>
+<b style='color:#4fc3f7'>Courses</b><br><br>
+<span style='color:#e0e0e0'>• David Silver's RL course (UCL/DeepMind) — YouTube</span><br>
+<span style='color:#e0e0e0'>• CS285 Deep RL (Berkeley) — YouTube</span><br>
+<span style='color:#e0e0e0'>• Hugging Face Deep RL Course — free, hands-on</span>
+</div>""", unsafe_allow_html=True)
 
     # Completion celebration
     st.markdown("---")
@@ -1737,7 +1743,7 @@ with tabs[7]:
         if pct_f >= 80:
             st.balloons()
             st.markdown(
-                f"<div class='success-box'>"
+                f"<div style='background:#0d3320;border-left:4px solid #4caf50;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>"
                 f"<h3>🎉 Congratulations! Outstanding performance!</h3>"
                 f"You scored <b>{total_score_f}/{total_max_f} ({pct_f}%)</b>. "
                 f"You have a strong grasp of Reinforcement Learning fundamentals. "
@@ -1747,7 +1753,7 @@ with tabs[7]:
             )
         elif pct_f >= 60:
             st.markdown(
-                f"<div class='info-box'>"
+                f"<div style='background:#0d2a5e;border-left:4px solid #4fc3f7;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>"
                 f"<h3>Good work! Keep it up.</h3>"
                 f"You scored <b>{total_score_f}/{total_max_f} ({pct_f}%)</b>. "
                 f"Review the sections where you lost points, retake those quizzes, and try again!"
@@ -1756,7 +1762,7 @@ with tabs[7]:
             )
         else:
             st.markdown(
-                f"<div class='warning-box'>"
+                f"<div style='background:#3d1f00;border-left:4px solid #ff9800;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>"
                 f"<h3>Keep practising!</h3>"
                 f"You scored <b>{total_score_f}/{total_max_f} ({pct_f}%)</b>. "
                 f"Re-read the earlier sections, use the AI Tutor to ask questions, and retake the quizzes."
@@ -1765,7 +1771,7 @@ with tabs[7]:
             )
     else:
         st.markdown(
-            "<div class='info-box'>Complete all quizzes in the earlier tabs to unlock your final score and celebration!</div>",
+            "<div style='background:#0d2a5e;border-left:4px solid #4fc3f7;border-radius:6px;padding:12px 16px;margin:10px 0;color:#e0e0e0;'>Complete all quizzes in the earlier tabs to unlock your final score and celebration!</div>",
             unsafe_allow_html=True,
         )
 
