@@ -576,8 +576,110 @@ def create_grid_figure(env, q_table=None, path=None, agent_pos=None, show_arrows
     return fig
 
 
+def _grid_image(env, path, step):
+    """Render the grid at the given step as a PNG (bytes) using Matplotlib."""
+    import io
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as patches
+
+    size = env.size
+    fig, ax = plt.subplots(figsize=(6, 6))
+    fig.patch.set_facecolor("#1a1a2e")
+    ax.set_facecolor("#1a1a2e")
+    ax.set_xlim(0, size)
+    ax.set_ylim(0, size)
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    # Color map for cell types
+    cell_colors = {}
+    for r in range(size):
+        for c in range(size):
+            pos = (r, c)
+            if pos == env.goal:
+                cell_colors[pos] = "#1b5e20"   # dark green
+            elif pos in env.traps:
+                cell_colors[pos] = "#b71c1c"   # dark red
+            elif pos == env.start:
+                cell_colors[pos] = "#1a237e"   # dark blue
+            else:
+                cell_colors[pos] = "#0d1b2a"   # near-black
+
+    # Draw cells — note: matplotlib y=0 is bottom, but grid row 0 = top
+    # We flip: draw row r at y = (size-1-r)
+    for r in range(size):
+        for c in range(size):
+            pos = (r, c)
+            y = size - 1 - r
+            rect = patches.FancyBboxPatch(
+                (c + 0.05, y + 0.05), 0.9, 0.9,
+                boxstyle="round,pad=0.02",
+                linewidth=1.5,
+                edgecolor="#4fc3f7",
+                facecolor=cell_colors[pos],
+            )
+            ax.add_patch(rect)
+            # Cell labels
+            label = ""
+            if pos == env.start:
+                label = "S"
+            elif pos == env.goal:
+                label = "G"
+            elif pos in env.traps:
+                label = "T"
+            if label:
+                ax.text(c + 0.5, y + 0.5, label,
+                        ha="center", va="center",
+                        fontsize=14, fontweight="bold", color="#ffffff")
+
+    # Draw trail (visited cells up to current step)
+    visited = path[:step]
+    n_visited = len(visited)
+    for idx, pos in enumerate(visited):
+        r, c = pos
+        y = size - 1 - r
+        alpha = 0.25 + 0.55 * (idx / max(n_visited - 1, 1))
+        trail = plt.Circle((c + 0.5, y + 0.5), 0.22, color="#fdd835", alpha=alpha, zorder=3)
+        ax.add_patch(trail)
+
+    # Draw agent (large bright ball) at current position
+    if path:
+        ar, ac = path[step]
+        ay = size - 1 - ar
+        # White halo
+        halo = plt.Circle((ac + 0.5, ay + 0.5), 0.40, color="#ffffff", alpha=0.35, zorder=4)
+        ax.add_patch(halo)
+        # Agent circle
+        agent = plt.Circle((ac + 0.5, ay + 0.5), 0.35, color="#ab47bc", zorder=5)
+        ax.add_patch(agent)
+        # Step label inside agent
+        ax.text(ac + 0.5, ay + 0.5, str(step),
+                ha="center", va="center",
+                fontsize=10, fontweight="bold", color="#ffffff", zorder=6)
+
+    # Title
+    pos = path[step] if path else (0, 0)
+    suffix = ""
+    if step == len(path) - 1 and path:
+        if path[step] == env.goal:
+            suffix = " - GOAL!"
+        elif path[step] in env.traps:
+            suffix = " - TRAP!"
+    ax.set_title(f"Step {step}/{len(path)-1}  pos={pos}{suffix}",
+                 color="#4fc3f7", fontsize=13, pad=8)
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=100, bbox_inches="tight",
+                facecolor=fig.get_facecolor())
+    plt.close(fig)
+    buf.seek(0)
+    return buf.read()
+
+
 def render_step_animation(env, path, unique_key, title="Agent Path"):
-    """Streamlit-native step-through animation using st.empty() + time.sleep()."""
+    """Streamlit-native step-through animation using st.empty() + Matplotlib PNG frames."""
     import time
     if not path:
         st.warning("No path to display.")
@@ -589,33 +691,30 @@ def render_step_animation(env, path, unique_key, title="Agent Path"):
             "Animation speed",
             options=[0.2, 0.4, 0.7, 1.2],
             value=0.7,
-            format_func=lambda x: {0.2:"Very fast",0.4:"Fast",0.7:"Medium",1.2:"Slow"}[x],
+            format_func=lambda x: {0.2: "Very fast", 0.4: "Fast", 0.7: "Medium", 1.2: "Slow"}[x],
             key=f"speed_{unique_key}",
         )
     with c_reset:
         if st.button("Reset", key=f"reset_{unique_key}"):
             st.session_state[f"astep_{unique_key}"] = 0
+
     if f"astep_{unique_key}" not in st.session_state:
         st.session_state[f"astep_{unique_key}"] = 0
-    step = st.slider("Drag to scrub:", 0, n-1, st.session_state[f"astep_{unique_key}"], key=f"slider_{unique_key}")
+
+    step = st.slider("Drag to scrub:", 0, n - 1, st.session_state[f"astep_{unique_key}"],
+                     key=f"slider_{unique_key}")
     st.session_state[f"astep_{unique_key}"] = step
+
     chart_ph = st.empty()
     play_clicked = st.button("▶  Play animation", key=f"play_{unique_key}", type="primary")
-    def _fig(i):
-        pos = path[i]
-        suffix = ""
-        if i == n-1:
-            if pos == env.goal: suffix = " — Goal reached!"
-            elif pos in env.traps: suffix = " — Hit a trap!"
-        return create_grid_figure(env, path=path[:i+1], agent_pos=pos, show_arrows=False,
-                                  title=f"{title}  |  Step {i}/{n-1}  at {pos}{suffix}")
+
     if play_clicked:
         for i in range(n):
-            chart_ph.plotly_chart(_fig(i), use_container_width=True)
+            chart_ph.image(_grid_image(env, path, i), use_container_width=True)
             time.sleep(delay)
-        st.session_state[f"astep_{unique_key}"] = n-1
+        st.session_state[f"astep_{unique_key}"] = n - 1
     else:
-        chart_ph.plotly_chart(_fig(step), use_container_width=True)
+        chart_ph.image(_grid_image(env, path, step), use_container_width=True)
 
 
 def create_training_charts(history):
@@ -778,6 +877,17 @@ with st.sidebar:
     st.markdown(
         f"<div style='text-align:center;font-size:1.1rem'>"
         f"<b>Total: {total_score}/{total_max} ({pct_total}%)</b></div>",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("---")
+    st.markdown(
+        "<div style='font-size:0.75rem;color:#888;text-align:center;line-height:1.6'>"
+        "Developed by <b style='color:#b0bec5'>Sridhar Nerur</b><br>"
+        "<a href='mailto:snerur@uta.edu' style='color:#4fc3f7;text-decoration:none'>snerur@uta.edu</a><br>"
+        "Built with <b style='color:#b0bec5'>Claude</b> (Anthropic)<br><br>"
+        "<span style='color:#ef9a9a'>For educational purposes only.</span>"
+        "</div>",
         unsafe_allow_html=True,
     )
 
