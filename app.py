@@ -35,6 +35,10 @@ body, .stApp {
     border-radius: 12px;
     padding: 20px 24px;
     margin-bottom: 16px;
+    color: #e0e0e0 !important;
+}
+.rl-card *, .rl-card p, .rl-card small, .rl-card li, .rl-card b, .rl-card span {
+    color: #e0e0e0 !important;
 }
 /* ── section header ── */
 .section-title {
@@ -51,8 +55,10 @@ body, .stApp {
     padding: 18px;
     text-align: center;
     height: 100%;
+    color: #e0e0e0 !important;
 }
-.feature-card h3 { color: #4fc3f7; margin-bottom: 6px; }
+.feature-card h3 { color: #4fc3f7 !important; margin-bottom: 6px; }
+.feature-card p, .feature-card small { color: #cccccc !important; }
 /* ── info boxes ── */
 .info-box {
     background: #0d47a1;
@@ -60,21 +66,27 @@ body, .stApp {
     border-radius: 6px;
     padding: 12px 16px;
     margin: 10px 0;
+    color: #e0e0e0 !important;
 }
+.info-box *, .info-box b, .info-box p { color: #e0e0e0 !important; }
 .success-box {
     background: #1b5e20;
     border-left: 4px solid #4caf50;
     border-radius: 6px;
     padding: 12px 16px;
     margin: 10px 0;
+    color: #e0e0e0 !important;
 }
+.success-box *, .success-box b, .success-box h3 { color: #e0e0e0 !important; }
 .warning-box {
     background: #4a2c00;
     border-left: 4px solid #ff9800;
     border-radius: 6px;
     padding: 12px 16px;
     margin: 10px 0;
+    color: #e0e0e0 !important;
 }
+.warning-box *, .warning-box b { color: #e0e0e0 !important; }
 /* ── quiz ── */
 .quiz-card {
     background: #1e2a45;
@@ -82,13 +94,15 @@ body, .stApp {
     border-radius: 10px;
     padding: 16px 20px;
     margin: 12px 0;
+    color: #e0e0e0 !important;
 }
-.quiz-correct { color: #4caf50; font-weight: bold; }
-.quiz-wrong   { color: #f44336; font-weight: bold; }
+.quiz-correct { color: #4caf50 !important; font-weight: bold; }
+.quiz-wrong   { color: #f44336 !important; font-weight: bold; }
 /* ── sidebar ── */
 .sidebar-score {
     font-size: 0.9rem;
     padding: 4px 0;
+    color: #e0e0e0 !important;
 }
 /* ── formula ── */
 .formula-box {
@@ -98,6 +112,7 @@ body, .stApp {
     padding: 14px;
     text-align: center;
     margin: 10px 0;
+    color: #e0e0e0 !important;
 }
 /* ── component badge ── */
 .comp-badge {
@@ -610,18 +625,42 @@ def create_animated_path(env, path, title="Agent Path Animation"):
         height=440,
         updatemenus=[dict(
             type="buttons", showactive=False,
-            y=1.1, x=0.5, xanchor="center",
+            y=1.12, x=0.5, xanchor="center",
             buttons=[
-                dict(label="▶ Play", method="animate",
-                     args=[None, dict(frame=dict(duration=400, redraw=True), fromcurrent=True)]),
-                dict(label="⏸ Pause", method="animate",
-                     args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")]),
+                dict(
+                    label="▶ Play",
+                    method="animate",
+                    args=[None, {
+                        "frame": {"duration": 600, "redraw": True},
+                        "transition": {"duration": 200, "easing": "linear"},
+                        "fromcurrent": True,
+                        "mode": "immediate",
+                    }],
+                ),
+                dict(
+                    label="⏸ Pause",
+                    method="animate",
+                    args=[[None], {
+                        "frame": {"duration": 0, "redraw": False},
+                        "transition": {"duration": 0},
+                        "mode": "immediate",
+                    }],
+                ),
             ],
         )],
         sliders=[dict(
-            steps=[dict(method="animate", args=[[str(i)], dict(mode="immediate", frame=dict(duration=0))],
-                        label=str(i)) for i in range(len(path))],
-            currentvalue=dict(prefix="Step: "),
+            steps=[
+                dict(
+                    method="animate",
+                    args=[[str(i)], {"mode": "immediate", "frame": {"duration": 0, "redraw": True}, "transition": {"duration": 0}}],
+                    label=str(i),
+                )
+                for i in range(len(path))
+            ],
+            currentvalue=dict(prefix="Step: ", font=dict(color="#e0e0e0")),
+            font=dict(color="#e0e0e0"),
+            bgcolor="#16213e",
+            bordercolor="#0f3460",
             x=0.05, len=0.9, y=0,
         )],
     )
@@ -812,14 +851,14 @@ def ensure_default_agent():
 # Tabs
 # ─────────────────────────────────────────────────────────────────────────────
 TAB_NAMES = [
-    "🏠 Home",
-    "❓ What is RL?",
-    "🔄 RL Framework",
-    "🧠 Key Concepts",
-    "📊 Q-Learning",
-    "🎮 Grid World Demo",
-    "🏋️ Train Your Agent",
-    "🎓 Summary & Challenges",
+    "Home",
+    "What is RL?",
+    "RL Framework",
+    "Key Concepts",
+    "Q-Learning",
+    "Grid World Demo",
+    "Train Your Agent",
+    "Summary & Challenges",
 ]
 
 tabs = st.tabs(TAB_NAMES)
@@ -964,33 +1003,51 @@ with tabs[1]:
 with tabs[2]:
     st.markdown("<div class='section-title'>🔄 The RL Framework</div>", unsafe_allow_html=True)
 
-    # ASCII art loop
-    st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
+    # SVG diagram of the Agent-Environment loop
     st.markdown("### The Agent-Environment Loop")
-    st.code(
-        """
-  ┌─────────────────────────────────────────────────────────────┐
-  │                     ENVIRONMENT                             │
-  │                                                             │
-  │     State s_t ──────────────────────────────────────►      │
-  │                                                      │      │
-  │     Reward r_t ─────────────────────────────────►   │      │
-  │                                                  │   │      │
-  └──────────────────────────────────────────────────┼───┼──────┘
-                                                     │   │
-                                                     ▼   │
-  ┌──────────────────────────────────────────────────┐   │
-  │                      AGENT                       │   │
-  │                                                  │   │
-  │   Observes s_t, r_t  →  Policy π  →  Action a_t │   │
-  │                                                  │   │
-  └──────────────────────────────────────────────────┘   │
-                            │                             │
-                            └────────── a_t ──────────────┘
-        """,
-        language="",
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("""
+<div style="background:#16213e;border:1px solid #0f3460;border-radius:12px;padding:28px 20px 16px 20px;text-align:center;">
+  <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:720px;font-family:Arial,sans-serif;">
+    <defs>
+      <marker id="arr-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#f39c12"/>
+      </marker>
+      <marker id="arr-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#e74c3c"/>
+      </marker>
+      <marker id="arr-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+        <polygon points="0 0, 10 3.5, 0 7" fill="#9b59b6"/>
+      </marker>
+    </defs>
+    <!-- Environment Box -->
+    <rect x="20" y="40" width="200" height="110" rx="12" fill="#0d2a5e" stroke="#4fc3f7" stroke-width="2.5"/>
+    <text x="120" y="80" text-anchor="middle" fill="#4fc3f7" font-size="15" font-weight="bold">ENVIRONMENT</text>
+    <text x="120" y="100" text-anchor="middle" fill="#90caf9" font-size="11">Rules of the world</text>
+    <text x="120" y="118" text-anchor="middle" fill="#90caf9" font-size="11">Game / Robot / Market</text>
+    <text x="120" y="136" text-anchor="middle" fill="#90caf9" font-size="11">Returns state + reward</text>
+    <!-- Agent Box -->
+    <rect x="500" y="40" width="200" height="110" rx="12" fill="#0d3320" stroke="#4caf50" stroke-width="2.5"/>
+    <text x="600" y="80" text-anchor="middle" fill="#4caf50" font-size="15" font-weight="bold">AGENT</text>
+    <text x="600" y="100" text-anchor="middle" fill="#a5d6a7" font-size="11">Observes state + reward</text>
+    <text x="600" y="118" text-anchor="middle" fill="#a5d6a7" font-size="11">Runs policy π</text>
+    <text x="600" y="136" text-anchor="middle" fill="#a5d6a7" font-size="11">Chooses next action</text>
+    <!-- State arrow: Environment to Agent (top) -->
+    <line x1="220" y1="72" x2="500" y2="72" stroke="#f39c12" stroke-width="2.5" marker-end="url(#arr-orange)"/>
+    <rect x="298" y="54" width="124" height="24" rx="6" fill="#3d2700"/>
+    <text x="360" y="71" text-anchor="middle" fill="#f39c12" font-size="13" font-weight="bold">State  s_t</text>
+    <!-- Reward arrow: Environment to Agent (middle) -->
+    <line x1="220" y1="118" x2="500" y2="118" stroke="#e74c3c" stroke-width="2.5" marker-end="url(#arr-red)"/>
+    <rect x="290" y="100" width="140" height="24" rx="6" fill="#3b0f0f"/>
+    <text x="360" y="117" text-anchor="middle" fill="#e74c3c" font-size="13" font-weight="bold">Reward  r_t</text>
+    <!-- Action arrow: Agent to Environment (curves under) -->
+    <path d="M600,150 L600,195 L120,195 L120,150" stroke="#9b59b6" stroke-width="2.5" fill="none" marker-end="url(#arr-purple)"/>
+    <rect x="296" y="177" width="128" height="24" rx="6" fill="#1e0b30"/>
+    <text x="360" y="194" text-anchor="middle" fill="#9b59b6" font-size="13" font-weight="bold">Action  a_t</text>
+    <!-- Caption -->
+    <text x="360" y="225" text-anchor="middle" fill="#666" font-size="11">This loop repeats every time step t = 0, 1, 2, ...</text>
+  </svg>
+</div>
+""", unsafe_allow_html=True)
 
     # Component cards
     st.markdown("### Core Components")
@@ -1104,54 +1161,128 @@ with tabs[3]:
 
     # Bellman equation
     st.markdown("---")
-    st.markdown("### 🔔 The Bellman Equation")
-    st.markdown("<div class='rl-card'>", unsafe_allow_html=True)
-    st.latex(r"Q^*(s,a) = r + \gamma \max_{a'} Q^*(s',a')")
-    st.markdown(
-        "The **Bellman Optimality Equation** says: the optimal Q-value of being in state *s* and taking action *a* "
-        "equals the immediate reward *r* plus the discounted maximum future Q-value. "
-        "This is the backbone of Q-learning — we keep updating Q-values until they satisfy this equation."
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("### The Bellman Equation — The Core Insight of RL")
+
+    st.markdown("""<div class='info-box'>
+<b>The intuition:</b> The value of taking action <i>a</i> in state <i>s</i> equals
+<b>what you earn right now</b> plus <b>the best you can earn from where you land</b>.
+<br><br>
+Think of it like planning a road trip: "The total time via this route = time on this road segment
++ the best possible total time from the next city." You don't need to know the whole map —
+you just need to know the next hop and trust that the values ahead are correct.
+</div>""", unsafe_allow_html=True)
+
+    st.latex(r"Q^*(s,a) \;=\; \underbrace{r(s,a)}_{\substack{\text{immediate}\\\text{reward}}} \;+\; \gamma \cdot \underbrace{\max_{a'} Q^*(s',\, a')}_{\substack{\text{best future value}\\\text{from next state }s'}}")
+
+    b1, b2, b3, b4 = st.columns(4)
+    with b1:
+        st.markdown("""<div class='rl-card' style='border-top:4px solid #4fc3f7;text-align:center;'>
+        <b style='color:#4fc3f7;font-size:1.1rem'>Q*(s, a)</b><br><br>
+        <small>The <b>optimal Q-value</b>: the best possible cumulative reward when taking action a from state s</small>
+        </div>""", unsafe_allow_html=True)
+    with b2:
+        st.markdown("""<div class='rl-card' style='border-top:4px solid #2ecc71;text-align:center;'>
+        <b style='color:#2ecc71;font-size:1.1rem'>r(s, a)</b><br><br>
+        <small>The <b>immediate reward</b> you collect right now — e.g. −0.1 for a step, +10 for reaching the goal</small>
+        </div>""", unsafe_allow_html=True)
+    with b3:
+        st.markdown("""<div class='rl-card' style='border-top:4px solid #f39c12;text-align:center;'>
+        <b style='color:#f39c12;font-size:1.1rem'>γ (gamma)</b><br><br>
+        <small>The <b>discount factor</b>: rewards earned in the future are worth slightly less than today's rewards</small>
+        </div>""", unsafe_allow_html=True)
+    with b4:
+        st.markdown("""<div class='rl-card' style='border-top:4px solid #9b59b6;text-align:center;'>
+        <b style='color:#9b59b6;font-size:1.1rem'>max Q*(s', a')</b><br><br>
+        <small>The <b>best Q-value in the next state s'</b> — whatever the optimal action there will be</small>
+        </div>""", unsafe_allow_html=True)
+
+    with st.expander("📖 Concrete Grid World Example — click to expand"):
+        st.markdown("""
+**Scenario:** The agent is at grid position (3, 3) and takes action RIGHT, landing on (3, 4).
+
+- **Immediate reward** r = −0.1  (regular step penalty — no trap or goal)
+- **Next state** s' = (3, 4)  — one step below the goal at (4, 4)
+- At (3, 4) the best action is DOWN toward the goal, with Q-value ≈ **+8.5**
+- Discount factor γ = 0.99
+        """)
+        st.latex(r"Q^*\bigl((3,3),\;\text{RIGHT}\bigr) \;=\; -0.1 \;+\; 0.99 \times 8.5 \;=\; -0.1 + 8.415 \;=\; \mathbf{8.315}")
+        st.markdown("""
+**Why does this matter?** We begin training with all Q-values at zero.
+After the agent accidentally reaches the goal and gets +10, the Bellman equation lets that reward
+**propagate backwards** — the state just before the goal gets a high Q-value, then the state before
+*that*, and so on. Within a few hundred episodes every state knows how close it is to the goal.
+        """)
 
     # Interactive Bellman demo
     st.markdown("---")
-    st.markdown("### 🔬 Interactive Bellman Calculation")
+    st.markdown("### Interactive Bellman Calculator")
+    st.markdown("""<div class='info-box'>
+Adjust the sliders to see how each ingredient of the Bellman equation affects the result.
+The <b>TD Error</b> is the correction signal — it drives every Q-learning update.
+</div>""", unsafe_allow_html=True)
 
-    np.random.seed(0)
-    demo_q = np.random.uniform(-1, 5, (5, 4))
+    bl, br = st.columns(2)
+    with bl:
+        st.markdown("**Set the scenario:**")
+        r_demo = st.select_slider(
+            "Immediate reward r — what did the agent just receive?",
+            options=[-5.0, -0.5, -0.1, 0.0, 10.0],
+            value=-0.1,
+            format_func=lambda x: {
+                -5.0: "−5.0  (hit a trap  💀)",
+                -0.5: "−0.5  (hit boundary 🧱)",
+                -0.1: "−0.1  (regular step ➡)",
+                 0.0: " 0.0  (neutral)",
+                10.0: "+10.0 (reached goal 🏆)",
+            }[x],
+            key="bellman_r",
+        )
+        max_q_ns = st.slider(
+            "Best Q-value at the next state  max Q(s', a')\n"
+            "(How good is where the agent just landed?)",
+            min_value=-5.0, max_value=10.0, value=7.5, step=0.1,
+            key="bellman_maxq",
+        )
+        gamma_key = st.slider("Discount factor γ", 0.0, 1.0, 0.99, 0.01, key="bellman_gamma")
+        current_q = st.slider(
+            "Current Q(s, a) — the agent's existing estimate before this update",
+            min_value=-6.0, max_value=10.0, value=3.0, step=0.1,
+            key="bellman_cq",
+        )
+        alpha_demo = st.slider("Learning rate α", 0.01, 1.0, 0.1, 0.01, key="bellman_alpha")
 
-    state_pick = st.selectbox("Pick a state (0–4):", list(range(5)), key="bellman_state")
-    action_pick = st.selectbox("Pick an action (0=↑, 1=↓, 2=←, 3=→):", [0, 1, 2, 3],
-                                format_func=lambda x: GridWorld.ACTION_NAMES[x],
-                                key="bellman_action")
-    gamma_key = st.slider("γ for Bellman demo", 0.0, 1.0, 0.99, 0.01, key="bellman_gamma")
-    r_demo    = st.number_input("Immediate reward r:", value=float(-0.1), step=0.1, key="bellman_r")
+    with br:
+        target    = r_demo + gamma_key * max_q_ns
+        td_error  = target - current_q
+        new_q     = current_q + alpha_demo * td_error
 
-    next_s    = (state_pick + 1) % 5  # dummy next state
-    max_q_ns  = float(np.max(demo_q[next_s]))
-    current_q = float(demo_q[state_pick, action_pick])
-    target    = r_demo + gamma_key * max_q_ns
+        st.markdown("**Step-by-step result:**")
+        calc_rows = [
+            ("Immediate reward  r",                           f"{r_demo:.2f}"),
+            ("Discount factor  γ",                            f"{gamma_key:.2f}"),
+            ("Best future Q-value  max Q(s', a')",            f"{max_q_ns:.2f}"),
+            ("γ × max Q(s', a')",                            f"{gamma_key * max_q_ns:.3f}"),
+            ("TD Target  =  r + γ × max Q(s', a')",          f"{target:.3f}"),
+            ("Current Q(s, a)  (before update)",              f"{current_q:.3f}"),
+            ("TD Error  =  Target − Q(s, a)",                 f"{td_error:+.3f}"),
+            (f"New Q  =  Q + α × TD Error  (α={alpha_demo})", f"{new_q:.3f}"),
+        ]
+        calc_df = pd.DataFrame(calc_rows, columns=["Component", "Value"])
+        st.dataframe(calc_df, hide_index=True, use_container_width=True)
 
-    c_q1, c_q2, c_q3 = st.columns(3)
-    c_q1.metric("Current Q(s,a)", f"{current_q:.3f}")
-    c_q2.metric(f"r + γ·max Q(s',·)", f"{target:.3f}")
-    c_q3.metric("TD Error (Target - Q)", f"{target - current_q:.3f}")
-
-    st.markdown(
-        f"<div class='info-box'>"
-        f"Q({state_pick}, {GridWorld.ACTION_NAMES[action_pick]}) = {current_q:.3f} → "
-        f"Target = {r_demo} + {gamma_key} × {max_q_ns:.3f} = {target:.3f} | "
-        f"TD Error = {target - current_q:.3f}"
-        f"</div>",
-        unsafe_allow_html=True,
-    )
-
-    # Show demo Q-table
-    with st.expander("Show demo Q-table"):
-        q_df = pd.DataFrame(demo_q, columns=GridWorld.ACTION_NAMES)
-        q_df.index.name = "State"
-        st.dataframe(q_df.round(3), use_container_width=True)
+        if abs(td_error) < 0.05:
+            st.success("TD Error ≈ 0 — the Q-value is already accurate. Very little update happens.")
+        elif td_error > 0:
+            st.info(
+                f"TD Error = +{td_error:.3f}  \n"
+                f"We **underestimated** this state — Q increases by **{alpha_demo * td_error:.3f}** "
+                f"(α × TD Error)."
+            )
+        else:
+            st.warning(
+                f"TD Error = {td_error:.3f}  \n"
+                f"We **overestimated** this state — Q decreases by **{abs(alpha_demo * td_error):.3f}**."
+            )
 
     render_quiz("key_concepts")
     render_llm_chat(
