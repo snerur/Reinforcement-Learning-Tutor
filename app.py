@@ -611,11 +611,11 @@ def render_step_animation(env, path, unique_key, title="Agent Path"):
                                   title=f"{title}  |  Step {i}/{n-1}  at {pos}{suffix}")
     if play_clicked:
         for i in range(n):
-            chart_ph.plotly_chart(_fig(i), use_container_width=True, key=f"af_{unique_key}")
+            chart_ph.plotly_chart(_fig(i), use_container_width=True)
             time.sleep(delay)
         st.session_state[f"astep_{unique_key}"] = n-1
     else:
-        chart_ph.plotly_chart(_fig(step), use_container_width=True, key=f"af_{unique_key}")
+        chart_ph.plotly_chart(_fig(step), use_container_width=True)
 
 
 def create_training_charts(history):
