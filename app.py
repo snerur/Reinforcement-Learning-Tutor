@@ -717,7 +717,7 @@ def create_qtable_heatmap(env, q_table):
         texttemplate="%{text}",
         colorscale=colorscale,
         showscale=True,
-        colorbar=dict(title="Max Q", tickfont=dict(color="#e0e0e0"), titlefont=dict(color="#e0e0e0")),
+        colorbar=dict(title="Max Q", tickfont=dict(color="#e0e0e0"), title_font=dict(color="#e0e0e0")),
     ))
     fig.update_layout(
         title=dict(text="Q-Table Heatmap (Max Q per State)", font=dict(color="#4fc3f7")),
