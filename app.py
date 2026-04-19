@@ -1224,7 +1224,7 @@ with tabs[4]:
             margin=dict(l=10, r=10, t=10, b=10), height=280,
             showlegend=True,
         )
-        st.plotly_chart(fig_eps, use_container_width=True)
+        st.plotly_chart(fig_eps, use_container_width=True, key="ql_eps_chart")
     with ec2:
         st.markdown("<div class='rl-card' style='margin-top:40px'>", unsafe_allow_html=True)
         st.markdown(f"**ε = {eps_slider:.2f}**")
@@ -1264,7 +1264,7 @@ with tabs[4]:
             yaxis=dict(title="ε", gridcolor="#0f3460"),
             margin=dict(l=40, r=20, t=20, b=40), height=250,
         )
-        st.plotly_chart(fig_decay, use_container_width=True)
+        st.plotly_chart(fig_decay, use_container_width=True, key="ql_decay_chart")
 
     render_quiz("q_learning")
     render_llm_chat(
@@ -1305,7 +1305,7 @@ with tabs[5]:
     with info_c1:
         fig_static = create_grid_figure(env_d, q_table=agent_d.Q, show_arrows=True,
                                         title="Grid World — Optimal Policy Arrows")
-        st.plotly_chart(fig_static, use_container_width=True)
+        st.plotly_chart(fig_static, use_container_width=True, key="demo_static_grid")
 
     # Episode selector — show path from snapshot
     st.markdown("---")
@@ -1325,7 +1325,7 @@ with tabs[5]:
         fig_snap = create_grid_figure(env_d, q_table=q_snap,
                                       path=path_snap, show_arrows=True,
                                       title=f"Policy & Path — Episode {ep_select}")
-        st.plotly_chart(fig_snap, use_container_width=True)
+        st.plotly_chart(fig_snap, use_container_width=True, key="demo_snap_path")
     with col_snap2:
         if path_snap:
             final_pos = path_snap[-1]
@@ -1344,14 +1344,14 @@ with tabs[5]:
     st.markdown("### 🤖 Animated — Fully Trained Agent")
     final_path, final_reward = run_greedy_episode(env_d, agent_d)
     fig_anim = create_animated_path(env_d, final_path, "Trained Agent (Greedy Policy)")
-    st.plotly_chart(fig_anim, use_container_width=True)
+    st.plotly_chart(fig_anim, use_container_width=True, key="demo_anim_path")
     st.markdown(f"Episode total reward: **{final_reward:.2f}** | Steps: **{len(final_path)}**")
 
     # Q-table heatmap
     st.markdown("---")
     st.markdown("### 🌡️ Q-Table Heatmap")
     fig_heat = create_qtable_heatmap(env_d, agent_d.Q)
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heat, use_container_width=True, key="demo_qtable_heat")
 
     # Training metrics
     st.markdown("---")
@@ -1364,7 +1364,7 @@ with tabs[5]:
     mc2.metric("Final Avg Reward",   f"{avg_reward:.2f}", "Last 100 episodes")
     mc3.metric("Training Episodes",  f"{n_eps_d}", "Default: 2000")
     fig_metrics = create_training_charts(history_d)
-    st.plotly_chart(fig_metrics, use_container_width=True)
+    st.plotly_chart(fig_metrics, use_container_width=True, key="demo_train_metrics")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 6 — TRAIN YOUR AGENT
@@ -1442,7 +1442,7 @@ with tabs[6]:
         rm3.metric("Episodes to 80%",    str(ep_80))
 
         fig_train_c = create_training_charts(hist_c)
-        st.plotly_chart(fig_train_c, use_container_width=True)
+        st.plotly_chart(fig_train_c, use_container_width=True, key="custom_train_metrics")
 
         # Policy & Q-table
         tc1, tc2 = st.columns(2)
@@ -1450,17 +1450,17 @@ with tabs[6]:
             st.markdown("**Policy Visualization (Arrows)**")
             fig_pol = create_grid_figure(env_c, q_table=agent_c.Q, show_arrows=True,
                                          title="Learned Policy")
-            st.plotly_chart(fig_pol, use_container_width=True)
+            st.plotly_chart(fig_pol, use_container_width=True, key="custom_policy_grid")
         with tc2:
             st.markdown("**Q-Table Heatmap**")
             fig_hc = create_qtable_heatmap(env_c, agent_c.Q)
-            st.plotly_chart(fig_hc, use_container_width=True)
+            st.plotly_chart(fig_hc, use_container_width=True, key="custom_qtable_heat")
 
         # Watch agent run
         if st.button("👀 Watch Agent Run (Greedy)", key="watch_custom"):
             cpath, creward = run_greedy_episode(env_c, agent_c)
             fig_ca = create_animated_path(env_c, cpath, "Custom Agent — Greedy Episode")
-            st.plotly_chart(fig_ca, use_container_width=True)
+            st.plotly_chart(fig_ca, use_container_width=True, key="custom_anim_path")
             st.markdown(f"Total reward: **{creward:.2f}** | Steps: **{len(cpath)}**")
 
     # Comparison table
